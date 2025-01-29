@@ -1,0 +1,1 @@
+odoo-addon-fieldservice_website_sale @ git+https://github.com/OCA/field-service.git@refs/pull/1298/head#subdirectory=setup/fieldservice_website_sale
