@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+
+  <!-- Copyright 2025 Patryk Pyczko (APSL-Nagarro)<ppyczko@apsl.net>
+       License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+
+  <record id="action_stock_move_dayroute" model="ir.actions.act_window">
+    <field name="name">Delivery Quantities</field>
+    <field name="res_model">stock.move</field>
+    <field name="view_mode">tree</field>
+    <field name="view_id" ref="stock.view_move_tree" />
+    <field name="domain">[('fsm_order_id', '!=', False)]</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        No deliveries found.
+      </p>
+    </field>
+    <field name="context">
+      {
+      'search_default_filter_today_fsm': 1, 'search_default_groupby_day': '1',
+      'search_default_by_product': '1'
+      }
+    </field>
+  </record>
+
+  <record id="view_move_search_dayroute" model="ir.ui.view">
+    <field name="name">stock.move.search.dayroute</field>
+    <field name="model">stock.move</field>
+    <field name="inherit_id" ref="stock.view_move_search" />
+    <field name="arch" type="xml">
+      <xpath expr="//search" position="inside">
+        <filter
+                    name="filter_today_fsm"
+                    string="Today's Deliveries"
+                    domain="[     ('date', '&gt;=', context_today().strftime('%Y-%m-%d')),
+                        ('date', '&lt;=', context_today().strftime('%Y-%m-%d'))]"
+                    context="{'search_default_filter_today_fsm': 1}"
+                />
+
+        <filter
+                    name="filter_tomorrow_fsm"
+                    string="Tomorrow's Deliveries"
+                    domain="[
+                        ('date', '&gt;=', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')),
+                        ('date', '&lt;=', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"
+                />
+
+        <filter
+                    name="filter_next_7_days_fsm"
+                    string="Next 7 Days' Deliveries"
+                    domain="[
+                ('date', '&gt;=', context_today().strftime('%Y-%m-%d')),
+                ('date', '&lt;=', (context_today() + datetime.timedelta(days=6)).strftime('%Y-%m-%d'))]"
+                />
+
+        <filter
+                    name="filter_next_14_days_fsm"
+                    string="Next 14 Days' Deliveries"
+                    domain="[
+                ('date', '&gt;=', context_today().strftime('%Y-%m-%d')),
+                ('date', '&lt;=', (context_today() + datetime.timedelta(days=13)).strftime('%Y-%m-%d'))]"
+                />
+      </xpath>
+
+      <xpath expr="//group/filter[@name='by_product']" position="before">
+        <filter
+                    string="Day"
+                    name="groupby_day"
+                    domain="[]"
+                    context="{'group_by': 'date:day'}"
+                />
+
+        <filter
+                    string="Day Route"
+                    name="by_dayroute"
+                    domain="[]"
+                    context="{'group_by': 'fsm_dayroute_id'}"
+                />
+      </xpath>
+    </field>
+  </record>
+
+</odoo>
