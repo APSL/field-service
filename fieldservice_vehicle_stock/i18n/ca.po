@@ -21,8 +21,8 @@ msgid ""
 "Check this box for operation types that will be used\n"
 "        to load inventory on FSM Vehicles."
 msgstr ""
-"Marque esta casilla para los tipos de operación que se utilizarán\n"
-"        para cargar inventario en los vehículos FSM."
+"Marqueu aquesta casella per als tipus d'operacions que s'utilitzaran\n"
+"        per carregar inventari als vehicles FSM."
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model.fields,help:fieldservice_vehicle_stock.field_stock_picking_type__fsm_vehicle_out
@@ -30,48 +30,48 @@ msgid ""
 "Check this box for operation types that will be used\n"
 "        to unload inventory from FSM Vehicles."
 msgstr ""
-"Marque esta casilla para los tipos de operación que se utilizarán\n"
-"        para descargar inventario de los vehículos FSM."
+"Marqueu aquesta casella per als tipus d'operacions que s'utilitzaran\n"
+"        per descarregar inventari dels vehicles FSM."
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model,name:fieldservice_vehicle_stock.model_fsm_order
 msgid "Field Service Order"
-msgstr "Pedidos de Servicio de Campo"
+msgstr "Ordre de Servei de Camp"
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model,name:fieldservice_vehicle_stock.model_fsm_vehicle
 msgid "Field Service Vehicle"
-msgstr "Vehículo de Servicio de Campo"
+msgstr "Vehicle de Servei de Camp"
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model.fields,field_description:fieldservice_vehicle_stock.field_fsm_vehicle__inventory_location_id
 msgid "Inventory Location"
-msgstr "Ubicación de Inventario"
+msgstr "Ubicació d'Inventari"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.picking.type,name:fieldservice_vehicle_stock.picking_type_vehicle_to_location
 msgid "Location Delivery"
-msgstr "Entrega en ubicación"
+msgstr "Lliurament a Ubicació"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.picking.type,name:fieldservice_vehicle_stock.picking_type_location_to_vehicle
 msgid "Location Pickup"
-msgstr "Recogida en ubicación"
+msgstr "Recollida a Ubicació"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.location.route,name:fieldservice_vehicle_stock.route_location_return
 msgid "Location Return"
-msgstr "Devolución desde ubicación"
+msgstr "Devolució des de Ubicació"
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model,name:fieldservice_vehicle_stock.model_stock_picking_type
 msgid "Picking Type"
-msgstr "Tipo de albarán"
+msgstr "Tipus de Picking"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.location.route,name:fieldservice_vehicle_stock.route_stock_to_vehicle_to_location
 msgid "Stock to Vehicle to Location"
-msgstr "Stock a Vehículo a Ubicación"
+msgstr "Estoc a Vehicle a Ubicació"
 
 #. module: fieldservice_vehicle_stock
 #: code:addons/fieldservice_vehicle_stock/models/stock_picking.py:0
@@ -79,57 +79,58 @@ msgstr "Stock a Vehículo a Ubicación"
 msgid ""
 "The inventory location of the FSM vehicle must be a descendant of the "
 "Vehicles location."
-msgstr "La ubicación de inventario del vehículo FSM debe ser descendiente de la ubicación de "
-"los vehículos."
+msgstr ""
+"La ubicació d'inventari del vehicle FSM ha de ser descendent de la ubicació "
+"dels vehicles."
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model,name:fieldservice_vehicle_stock.model_stock_picking
 msgid "Transfer"
-msgstr "Transferir"
+msgstr "Transferència"
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model.fields,field_description:fieldservice_vehicle_stock.field_stock_picking_type__fsm_vehicle_in
 msgid "Used to load a Field Service Vehicle"
-msgstr "Utilizado para cargar un vehículo de Servicio de Campo"
+msgstr "Utilitzat per carregar un Vehicle de Servei de Camp"
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model.fields,field_description:fieldservice_vehicle_stock.field_stock_picking_type__fsm_vehicle_out
 msgid "Used to unload a Field Service Vehicle"
-msgstr "Utilizado para descargar un vehículo de Servicio de Campo"
+msgstr "Utilitzat per descarregar un Vehicle de Servei de Camp"
 
 #. module: fieldservice_vehicle_stock
 #: model:ir.model.fields,field_description:fieldservice_vehicle_stock.field_stock_picking__fsm_vehicle_id
 msgid "Vehicle"
-msgstr "Vehículo"
+msgstr "Vehicle"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.picking.type,name:fieldservice_vehicle_stock.picking_type_output_to_vehicle
 msgid "Vehicle Loading"
-msgstr "Carga del vehículo"
+msgstr "Càrrega de Vehicle"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.picking.type,name:fieldservice_vehicle_stock.picking_type_vehicle_to_input
 msgid "Vehicle Returns"
-msgstr "Devolución al almacén"
+msgstr "Devolució des del vehicle"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.rule,name:fieldservice_vehicle_stock.procurement_rule_vehicle_to_location
 msgid "Vehicle → Location"
-msgstr "Vehículo → Ubicación"
+msgstr "Vehicle → Ubicació"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.rule,name:fieldservice_vehicle_stock.stock_rule_vehicle_to_input
 msgid "Vehicle → Warehouse"
-msgstr "Vehículo → Bodega"
+msgstr "Vehicle → Magatzem"
 
 #. module: fieldservice_vehicle_stock
 #: model:stock.rule,name:fieldservice_vehicle_stock.procurement_rule_location_to_vehicle
 #: model:stock.rule,name:fieldservice_vehicle_stock.procurement_rule_output_to_vehicle
 msgid "Warehouse → Vehicle"
-msgstr "Bodega → Vehículo"
+msgstr "Magatzem → Vehicle"
 
 #. module: fieldservice_vehicle_stock
 #: code:addons/fieldservice_vehicle_stock/models/stock_picking.py:0
 #, python-format
 msgid "You must provide the vehicle for this picking type."
-msgstr "Debe proporcionar el vehículo para este tipo de picking."
+msgstr "Heu de proporcionar el vehicle per a aquest tipus de picking."
