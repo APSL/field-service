@@ -1,0 +1,1 @@
+odoo-addon-fieldservice_availability @ git+https://github.com/OCA/field-service.git@refs/pull/1318/head#subdirectory=setup/fieldservice_availability
