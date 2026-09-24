@@ -1,7 +1,3 @@
-.. image:: https://odoo-community.org/readme-banner-image
-   :target: https://odoo-community.org/get-involved?utm_source=readme
-   :alt: Odoo Community Association
-
 ================================
 Field Service - Sale Stock Route
 ================================
@@ -17,7 +13,7 @@ Field Service - Sale Stock Route
 .. |badge1| image:: https://img.shields.io/badge/maturity-Beta-yellow.png
     :target: https://odoo-community.org/page/development-status
     :alt: Beta
-.. |badge2| image:: https://img.shields.io/badge/license-AGPL--3-blue.png
+.. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Ffield--service-lightgray.png?logo=github
@@ -32,37 +28,59 @@ Field Service - Sale Stock Route
 
 |badge1| |badge2| |badge3| |badge4| |badge5|
 
-This module integrates the fieldservice_sale_stock and
-fieldservice_route modules, enabling automatic generation of FSM order
-day routes from sales orders.
+This module integrates ``fieldservice_sale_stock``,
+``fieldservice_route``, and ``fieldservice_availability``, enabling
+automatic creation and scheduling of FSM orders from sales orders with
+flexible route assignment and delivery time slot management.
 
-Requirements for Confirming a Sales Order
------------------------------------------
+Confirmation of Sales Orders
+----------------------------
 
-If a sales order contains a product that generates an FSM order, the
-following conditions must be met before confirmation:
+When a sales order contains a product that generates an FSM order:
 
-- An FSM location must be set.
-- The FSM location must have an assigned route.
-- The FSM route must have a designated FSM person.
-- The FSM route must have assigned working days.
+- An FSM location must be set on the sales order.
+- Route assignment, FSM person, and route days are optional upon
+  confirmation. If no route or driver is assigned, the order confirms
+  flexibly and creates an unassigned FSM order in the pending orders
+  pool.
 
-Automatic Scheduling of FSM Orders
-----------------------------------
+Automatic Scheduling and Delivery Time Ranges
+---------------------------------------------
 
-- If the commitment_date and commitment_date_end fields **are not set**
-  on the sale order upon confirmation, they will be automatically
-  assigned to the next available route day based on the FSM location’s
-  schedule.
-- If these fields **are set**, the FSM order will be scheduled
-  accordingly, with validation ensuring that the commitment_date falls
-  on a valid route day. This validation can be overridden by enabling
-  the **"Force Schedule"** option on the FSM route to allow scheduling
-  on any day.
+The active delivery time range for any sale order is resolved using a
+5-tier hierarchy (see ``fieldservice_availability`` for details):
 
-This module also introduces a **"Postpone Delivery"** button in the FSM
-order form view, allowing users to reschedule the order to the next
-available route day based on the FSM location’s schedule.
+1. **Location Seasonal Schedule**
+2. **Location Default Schedule**
+3. **Route Seasonal Schedule**
+4. **Route Default Schedule**
+5. **Global Fallback**
+
+This hierarchy is applied universally to all delivery date calculations
+upon order confirmation:
+
+- **Unset Delivery Dates:** If ``commitment_date`` and
+  ``commitment_date_end`` are not set upon confirmation, the system
+  assigns the next available route day (or tomorrow if no route is
+  assigned) and sets the start and end hours resolved from the time
+  range hierarchy.
+- **Manual Delivery Dates:** If delivery dates are set manually, the
+  system preserves the selected calendar days and standardizes the start
+  and end hours using the time range hierarchy.
+- **Route Validation & Force Schedule:** If a route is assigned, the
+  delivery date is validated against the route's operational days. This
+  validation can be overridden by enabling **Force Schedule** on the
+  route.
+
+FSM Order Management
+--------------------
+
+- **Postpone Delivery:** Users can postpone an FSM order to the next
+  available route day directly from the FSM order form view.
+- **Bidirectional Date Synchronization:** Updating dates on an FSM order
+  automatically synchronizes the corresponding sales order commitment
+  dates and active stock pickings while logging updates in the sales
+  order chatter.
 
 **Table of contents**
 
@@ -72,35 +90,54 @@ available route day based on the FSM location’s schedule.
 Usage
 =====
 
-To use this module, you need to:
+Configuration
+-------------
 
-1. Navigate to Sales > Orders.
-2. Create a new sales order.
-3. Add a product that generates an FSM order (Field Service Tracking set
-   to "Create one FSM order per sale order" on the product form).
-4. Set the Customer and FSM Location.
-5. Make sure the FSM Location has a route set and this route has a
-   person assigned and route days set.
-6. In the sale order, navigate to the 'Other Info' tab and set the
-   'Delivery Date' and 'Delivery End Date' fields. You can also leave
-   them empty to have the system automatically assign the next available
-   route day.
-7. Confirm the sale order.
-8. If the 'Delivery Date' and 'Delivery End Date' fields were empty, the
-   system will automatically assign the next available route day based
-   on the FSM location's schedule. If they were set, the FSM order will
-   be scheduled accordingly. In case the 'Delivery Date' falls on a day
-   that is not part of the route, the system will show an error message.
+Before creating sales orders, you can configure delivery schedules:
 
-If you navigate to the FSM order, you will see that the Schedule Details
-are based on the 'Delivery Date' and 'Delivery End Date' fields from the
-sale order.
+1. Navigate to **Field Service > Configuration > Availability > Delivery
+   Time Ranges**.
+2. Create time ranges (e.g., ``08:00`` to ``16:00``). You can leave them
+   as year-round defaults or specify seasonal date windows.
+3. Assign time ranges directly to **FSM Locations** or **FSM Routes**.
+   If left unassigned, the system will fall back to global schedules or
+   default date times.
 
-Additionally, you will find a 'Postpone Delivery' button in the FSM
-order form view, allowing you to reschedule the order to the next
-available route day based on the FSM location's schedule. You can also
-manually reschedule the order by changing the 'Delivery Date' and
-'Delivery End Date' fields in the sale order.
+--------------
+
+Operating Flow
+--------------
+
+1. Navigate to **Sales > Orders** and create a new sales order.
+2. Select the **Customer** and **FSM Location**.
+3. Add a product configured with Field Service tracking
+   (``field_service_tracking`` set to create an FSM order).
+4. In the **Other Info** tab, set the **Delivery Date** and **Delivery
+   End Date** fields, or leave them empty:
+
+   - If left empty, the system automatically assigns the next available
+     route day (or tomorrow if no route is assigned).
+   - If set manually, the system preserves the selected calendar dates.
+   - In both cases, start and end hours are standardized using the
+     5-tier delivery schedule hierarchy (Location Seasonal ⟶ Location
+     Default ⟶ Route Seasonal ⟶ Route Default ⟶ Global Fallback).
+
+5. Click **Confirm**.
+
+   - If an assigned route has restricted operational days, the system
+     validates the selected date unless **Force Schedule** is enabled on
+     the route.
+   - If no route or driver is assigned, the order confirms and creates
+     an unassigned FSM order in the pending orders pool.
+
+6. Open the generated **FSM Order**:
+
+   - Schedule details reflect the delivery dates computed from the sales
+     order.
+   - Click **Postpone Delivery** in the header to reschedule the order
+     to the next available route day.
+   - Updating schedule dates on the FSM order automatically updates the
+     sales order commitment dates and open stock pickings.
 
 Bug Tracker
 ===========

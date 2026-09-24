@@ -3,7 +3,10 @@
 
 from datetime import timedelta
 
+from markupsafe import Markup
+
 from odoo import _, fields, models
+from odoo.tools import format_datetime
 
 
 class FSMOrder(models.Model):
@@ -31,28 +34,30 @@ class FSMOrder(models.Model):
 
                     if old_start != new_start:
                         sale.commitment_date = new_start
+                        old_str = (
+                            format_datetime(self.env, old_start) if old_start else "—"
+                        )
+                        new_str = (
+                            format_datetime(self.env, new_start) if new_start else "—"
+                        )
                         changes.append(
                             _("- Delivery Date: %(old)s → %(new)s")
-                            % {
-                                "old": old_start or "—",
-                                "new": new_start or "—",
-                            }
+                            % {"old": old_str, "new": new_str}
                         )
 
                     if old_end != new_end:
                         sale.commitment_date_end = new_end
+                        old_str = format_datetime(self.env, old_end) if old_end else "—"
+                        new_str = format_datetime(self.env, new_end) if new_end else "—"
                         changes.append(
                             _("- Delivery End Date: %(old)s → %(new)s")
-                            % {
-                                "old": old_end or "—",
-                                "new": new_end or "—",
-                            }
+                            % {"old": old_str, "new": new_str}
                         )
 
                     if changes:
-                        body = _("<b>Updated Delivery Dates:</b><br/>") + "<br/>".join(
-                            changes
-                        )
+                        body = Markup(
+                            _("<b>Updated Delivery Dates:</b><br/>")
+                        ) + Markup("<br/>").join([Markup(c) for c in changes])
                         sale.message_post(
                             body=body, subtype_id=self.env.ref("mail.mt_note").id
                         )
@@ -94,9 +99,9 @@ class FSMOrder(models.Model):
                 }
             )
 
+            date_str = format_datetime(self.env, new_commitment_date)
             fsm_order.message_post(
-                body=_("Delivery postponed. New scheduled date: %s.")
-                % new_commitment_date.strftime("%d/%m/%Y"),
+                body=_("Delivery postponed. New scheduled date: %s.") % date_str,
                 message_type="comment",
                 subtype_xmlid="mail.mt_comment",
             )

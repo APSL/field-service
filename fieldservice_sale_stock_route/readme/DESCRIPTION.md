@@ -1,29 +1,26 @@
-This module integrates the fieldservice_sale_stock and
-fieldservice_route modules, enabling automatic generation of FSM order
-day routes from sales orders.
+This module integrates `fieldservice_sale_stock`, `fieldservice_route`, and `fieldservice_availability`, enabling automatic creation and scheduling of FSM orders from sales orders with flexible route assignment and delivery time slot management.
 
-## Requirements for Confirming a Sales Order
+## Confirmation of Sales Orders
 
-If a sales order contains a product that generates an FSM order, the
-following conditions must be met before confirmation:
+When a sales order contains a product that generates an FSM order:
+- An FSM location must be set on the sales order.
+- Route assignment, FSM person, and route days are optional upon confirmation. If no route or driver is assigned, the order confirms flexibly and creates an unassigned FSM order in the pending orders pool.
 
-- An FSM location must be set.
-- The FSM location must have an assigned route.
-- The FSM route must have a designated FSM person.
-- The FSM route must have assigned working days.
+## Automatic Scheduling and Delivery Time Ranges
 
-## Automatic Scheduling of FSM Orders
+The active delivery time range for any sale order is resolved using a 5-tier hierarchy (see `fieldservice_availability` for details):
+1. **Location Seasonal Schedule**
+2. **Location Default Schedule**
+3. **Route Seasonal Schedule**
+4. **Route Default Schedule**
+5. **Global Fallback**
 
-- If the commitment_date and commitment_date_end fields **are not set**
-  on the sale order upon confirmation, they will be automatically
-  assigned to the next available route day based on the FSM location’s
-  schedule.
-- If these fields **are set**, the FSM order will be scheduled
-  accordingly, with validation ensuring that the commitment_date falls
-  on a valid route day. This validation can be overridden by enabling
-  the **"Force Schedule"** option on the FSM route to allow scheduling
-  on any day.
+This hierarchy is applied universally to all delivery date calculations upon order confirmation:
+- **Unset Delivery Dates:** If `commitment_date` and `commitment_date_end` are not set upon confirmation, the system assigns the next available route day (or tomorrow if no route is assigned) and sets the start and end hours resolved from the time range hierarchy.
+- **Manual Delivery Dates:** If delivery dates are set manually, the system preserves the selected calendar days and standardizes the start and end hours using the time range hierarchy.
+- **Route Validation & Force Schedule:** If a route is assigned, the delivery date is validated against the route's operational days. This validation can be overridden by enabling **Force Schedule** on the route.
 
-This module also introduces a **"Postpone Delivery"** button in the FSM
-order form view, allowing users to reschedule the order to the next
-available route day based on the FSM location’s schedule.
+## FSM Order Management
+
+- **Postpone Delivery:** Users can postpone an FSM order to the next available route day directly from the FSM order form view.
+- **Bidirectional Date Synchronization:** Updating dates on an FSM order automatically synchronizes the corresponding sales order commitment dates and active stock pickings while logging updates in the sales order chatter.
