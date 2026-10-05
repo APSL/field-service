@@ -1,6 +1,7 @@
-A Field Service route is the sorted list of orders that one
-worker/vehicle will perform during a day.
+A Field Service Day Route is the planned set of orders assigned to a field service person for a specific date and route.
 
-This module allows you to manage your Field Service routes: when
-assigning an order to a worker and scheduling it, a route is
-automatically created for that worker and day.
+This module automates Field Service route management:
+- Automatically creates and synchronizes Day Routes when scheduling and assigning orders to a person.
+- Enforces route capacities and uniqueness rules per date, person, and route.
+- Handles seamless route fusion when header parameters are modified.
+- Supports both routed locations and route-less field service orders.

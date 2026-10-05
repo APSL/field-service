@@ -1,10 +1,12 @@
 # Copyright (C) 2019 Open Source Integrators
 # Copyright (C) 2019 Serpent consulting Services
+# Copyright 2025 Patryk Pyczko (APSL-Nagarro)<ppyczko@apsl.net>
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl.html).
+
 from datetime import datetime
 
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 
 
@@ -154,9 +156,6 @@ class FSMRouteDayRoute(models.Model):
     @api.constrains("route_id", "max_order", "order_count")
     def check_capacity(self):
         for rec in self:
-            # max_order = 0 means "no limit" (the field's default): see
-            # _get_dayroute_domain in fsm_order.py, which treats it the
-            # same way when looking for a dayroute with free capacity.
             if rec.route_id and rec.max_order and rec.order_count > rec.max_order:
                 raise ValidationError(
                     _(
@@ -165,15 +164,139 @@ class FSMRouteDayRoute(models.Model):
                     )
                 )
 
-    def _is_removable(self):
-        """Whether this (now possibly empty) dayroute can be deleted.
+    # ---------------------------------------------------------
+    # Extensible Hook Architecture for Day Route Sync & Fusion
+    # ---------------------------------------------------------
 
-        A separate, overridable hook instead of inlining the check where
-        it's used: extensions that hang other content off a dayroute
-        besides ``order_ids`` (e.g. assignments of helper technicians)
-        can override this to keep it alive without having to re-implement
-        the cleanup call sites.
-        """
+    @api.constrains("date", "person_id", "route_id")
+    def _check_dayroute_uniqueness(self):
+        for rec in self:
+            if rec.date and rec.person_id:
+                domain = rec._get_dayroute_search_domain()
+                if self.search_count(domain):
+                    raise ValidationError(
+                        _(
+                            "A Day Route already exists for this Date, Person, "
+                            "and Route combination."
+                        )
+                    )
+
+    @api.model
+    def _get_dayroute_key_fields(self):
+        """Set of fields defining a unique dayroute key."""
+        return {"date", "person_id", "route_id"}
+
+    def _is_dayroute_complete(self, vals=None):
+        """Check if all required key fields are set."""
+        self.ensure_one()
+        date_val = vals.get("date") if vals and "date" in vals else self.date
+        person_val = (
+            vals.get("person_id")
+            if vals and "person_id" in vals
+            else (self.person_id.id if self.person_id else False)
+        )
+        return bool(date_val and person_val)
+
+    def _get_dayroute_search_domain(self, vals=None):
+        """Build domain to search for overlapping dayroutes with available capacity."""
+        self.ensure_one()
+        date_val = vals.get("date") if vals and "date" in vals else self.date
+        person_val = (
+            vals.get("person_id")
+            if vals and "person_id" in vals
+            else (self.person_id.id if self.person_id else False)
+        )
+        route_val = (
+            vals.get("route_id")
+            if vals and "route_id" in vals
+            else (self.route_id.id if self.route_id else False)
+        )
+        return [
+            ("date", "=", date_val),
+            ("person_id", "=", person_val),
+            ("route_id", "=", route_val),
+            ("id", "!=", self.id),
+            "|",
+            ("max_order", "=", 0),
+            ("order_remaining", ">", 0),
+        ]
+
+    def _prepare_order_sync_vals(self, vals=None):
+        """Prepare dict of values to push down to assigned orders."""
+        self.ensure_one()
+        res = {}
+        if vals and "person_id" in vals:
+            res["person_id"] = vals["person_id"]
+        return res
+
+    def write(self, vals):
+        key_fields = self._get_dayroute_key_fields()
+        if not key_fields.intersection(vals):
+            return super(
+                FSMRouteDayRoute, self.with_context(skip_unlink_removable=True)
+            ).write(vals)
+
+        fused_records = self.env["fsm.route.dayroute"]
+        new_date_obj = fields.Date.to_date(vals["date"]) if "date" in vals else False
+
+        for dayroute in self:
+            sync_vals = dayroute._prepare_order_sync_vals(vals)
+
+            # If key incomplete (e.g. person cleared), unassign orders without fusion
+            if not dayroute._is_dayroute_complete(vals):
+                if sync_vals:
+                    dayroute.order_ids.with_context(
+                        skip_dayroute_sync=True, skip_unlink_removable=True
+                    ).write(sync_vals)
+                continue
+
+            # Check if another dayroute already exists matching the new parameters
+            existing = self.search(dayroute._get_dayroute_search_domain(vals), limit=1)
+            if existing:
+                sync_vals["dayroute_id"] = existing.id
+                fused_records |= dayroute
+
+            # Push all changes (person, dayroute, and date) in a SINGLE pass per order
+            for order in dayroute.order_ids:
+                order_upd = dict(sync_vals)
+                if new_date_obj and order.scheduled_date_start:
+                    order_upd["scheduled_date_start"] = datetime.combine(
+                        new_date_obj, order.scheduled_date_start.time()
+                    )
+                if order_upd:
+                    order.with_context(
+                        skip_dayroute_sync=True, skip_unlink_removable=True
+                    ).write(order_upd)
+
+        if fused_records:
+            fused_records.unlink()
+
+        recs_to_write = self - fused_records
+        return (
+            super(
+                FSMRouteDayRoute, recs_to_write.with_context(skip_unlink_removable=True)
+            ).write(vals)
+            if recs_to_write
+            else True
+        )
+
+    def unlink(self):
+        for rec in self:
+            if any(order.is_closed for order in rec.order_ids):
+                raise UserError(
+                    _(
+                        "You cannot delete a Day Route that contains "
+                        "completed or closed orders."
+                    )
+                )
+            # Clear person_id on open orders so they return to unassigned pool cleanly
+            rec.order_ids.with_context(skip_dayroute_sync=True).write(
+                {"person_id": False, "dayroute_id": False}
+            )
+        return super().unlink()
+
+    def _is_removable(self):
+        """Whether this (now possibly empty) dayroute can be deleted."""
         self.ensure_one()
         return not self.order_ids
 

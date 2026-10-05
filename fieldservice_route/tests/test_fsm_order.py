@@ -1,11 +1,12 @@
 # Copyright (C) 2019 Open Source Integrators
 # Copyright (C) 2019 Serpent consulting Services
 # Copyright 2022 Tecnativa - Víctor Martínez
+# Copyright 2025 Patryk Pyczko (APSL-Nagarro)<ppyczko@apsl.net>
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl.html).
 
 from datetime import datetime, timedelta
 
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import Form, common
 
 
@@ -38,6 +39,12 @@ class FSMOrderRouteCase(common.TransactionCase):
             }
         )
         self.test_location.fsm_route_id = self.fsm_route_id.id
+        self.location_no_route = self.env["fsm.location"].create(
+            {
+                "name": "No Route Location",
+                "owner_id": self.test_location.owner_id.id,
+            }
+        )
 
     def _create_order(self, location=None, person=None, date=None):
         """Create an order the same way the web Form does: with
@@ -200,3 +207,235 @@ class FSMOrderRouteCase(common.TransactionCase):
         order.write({"person_id": False, "scheduled_date_start": False})
         self.assertFalse(order.dayroute_id)
         self.assertFalse(dayroute.exists())
+
+    def test_unlink_open_dayroute_clears_person(self):
+        """Deleting an open dayroute clears person_id and dayroute_id on its orders."""
+        order = self._create_order()
+        dayroute = order.dayroute_id
+
+        self.assertTrue(order.person_id)
+        dayroute.unlink()
+
+        self.assertFalse(order.person_id)
+        self.assertFalse(order.dayroute_id)
+
+    def test_unlink_closed_dayroute_blocked(self):
+        """Deleting a dayroute with closed orders must raise a UserError."""
+        order = self._create_order()
+        dayroute = order.dayroute_id
+
+        closed_stage = self.env["fsm.stage"].search([("is_closed", "=", True)], limit=1)
+        if not closed_stage:
+            closed_stage = self.env["fsm.stage"].create(
+                {"name": "Closed Stage", "is_closed": True, "stage_type": "route"}
+            )
+        order.stage_id = closed_stage.id
+
+        with self.assertRaises(UserError):
+            dayroute.unlink()
+
+    def test_remove_order_from_dayroute_clears_person(self):
+        """Removing an order from dayroute (dayroute_id=False) clears person_id."""
+        order = self._create_order()
+        self.assertTrue(order.person_id)
+
+        order.write({"dayroute_id": False})
+        self.assertFalse(order.person_id)
+        self.assertFalse(order.dayroute_id)
+
+    def test_remove_last_order_from_dayroute_header_keeps_dayroute_alive(self):
+        """Removing the last order via Day Route header write keeps the Day Route
+        record alive (preventing UI missing record crashes) while clearing person_id
+        on the order.
+        """
+        order = self._create_order()
+        dayroute = order.dayroute_id
+        self.assertTrue(dayroute.exists())
+
+        # Simulate removing the line directly from the Day Route form view
+        dayroute.write({"order_ids": [(3, order.id)]})
+
+        self.assertTrue(
+            dayroute.exists(),
+            "Day Route header must not be auto-deleted when edited from its form view.",
+        )
+        self.assertFalse(order.dayroute_id)
+        self.assertFalse(order.person_id)
+
+    def test_manual_duplicate_dayroute_raises_validation_error(self):
+        """Manually creating a duplicate dayroute should raise a ValidationError."""
+        order = self._create_order()
+
+        with self.assertRaises(ValidationError):
+            self.fsm_dayroute_obj.create(
+                {
+                    "date": order.scheduled_date_start.date(),
+                    "person_id": order.person_id.id,
+                    "route_id": order.fsm_route_id.id,
+                }
+            )
+
+    def test_dayroute_fusion_on_write(self):
+        """Top-down fusion: Changing dayroute header to an existing
+        route merges orders."""
+        order1 = self._create_order()
+        person2 = self.env["fsm.person"].create({"name": "Test Person 2"})
+        order2 = self._create_order(person=person2)
+
+        dayroute1 = order1.dayroute_id
+        dayroute2 = order2.dayroute_id
+
+        self.assertNotEqual(dayroute1, dayroute2)
+
+        # Change dayroute2 to match dayroute1
+        dayroute2.write({"person_id": self.test_person.id})
+
+        self.assertEqual(order1.dayroute_id, dayroute1)
+        self.assertEqual(order2.dayroute_id, dayroute1)
+        self.assertEqual(order2.person_id, self.test_person)
+        self.assertFalse(dayroute2.exists())
+
+    def test_routeless_dayroute_uniqueness_and_separation(self):
+        """Scenario 2 & 4: Ensure route-less dayroutes enforce uniqueness,
+        and that a person can have both a routed dayroute and a route-less
+        dayroute on the same date.
+        """
+        order_routed = self._create_order()
+
+        order_routeless = self.fsm_order_obj.create(
+            {
+                "location_id": self.location_no_route.id,
+                "person_id": self.test_person.id,
+                "scheduled_date_start": self.date,
+            }
+        )
+
+        self.assertNotEqual(order_routed.dayroute_id, order_routeless.dayroute_id)
+        self.assertEqual(order_routed.dayroute_id.route_id, self.fsm_route_id)
+        self.assertFalse(order_routeless.dayroute_id.route_id)
+
+        with self.assertRaises(ValidationError):
+            self.fsm_dayroute_obj.create(
+                {
+                    "date": self.date.date(),
+                    "person_id": self.test_person.id,
+                    "route_id": False,
+                }
+            )
+
+    def test_domain_route_matching_and_routeless_orders(self):
+        """Test that Day Route order selection domain allows matching route orders
+        and route-less orders, but hides orders from different routes or closed orders.
+        """
+        order_matching = self._create_order()
+        dayroute = order_matching.dayroute_id
+
+        order_routeless = self.fsm_order_obj.create(
+            {
+                "location_id": self.location_no_route.id,
+                "scheduled_date_start": self.date,
+            }
+        )
+
+        route2 = self.fsm_route_obj.create({"name": "Route 2"})
+        location_route2 = self.env["fsm.location"].create(
+            {
+                "name": "Route 2 Location",
+                "owner_id": self.test_location.owner_id.id,
+                "fsm_route_id": route2.id,
+            }
+        )
+        order_diff_route = self.fsm_order_obj.create(
+            {
+                "location_id": location_route2.id,
+                "scheduled_date_start": self.date,
+            }
+        )
+
+        domain = [
+            ("dayroute_id", "=", False),
+            ("is_closed", "=", False),
+            "|",
+            ("fsm_route_id", "=", dayroute.route_id.id),
+            ("fsm_route_id", "=", False),
+        ]
+        eligible_orders = self.fsm_order_obj.search(domain)
+
+        self.assertIn(order_routeless, eligible_orders)
+        self.assertNotIn(order_matching, eligible_orders)
+        self.assertNotIn(order_diff_route, eligible_orders)
+
+    def test_domain_excludes_closed_orders(self):
+        """Test that closed/completed orders are strictly excluded by the domain."""
+        order_closed = self.fsm_order_obj.create(
+            {
+                "location_id": self.location_no_route.id,
+                "scheduled_date_start": self.date,
+            }
+        )
+        closed_stage = self.env["fsm.stage"].search([("is_closed", "=", True)], limit=1)
+        if not closed_stage:
+            closed_stage = self.env["fsm.stage"].create(
+                {
+                    "name": "Closed Stage",
+                    "is_closed": True,
+                    "stage_type": "route",
+                }
+            )
+        order_closed.stage_id = closed_stage.id
+
+        domain = [
+            ("dayroute_id", "=", False),
+            ("is_closed", "=", False),
+            "|",
+            ("fsm_route_id", "=", self.fsm_route_id.id),
+            ("fsm_route_id", "=", False),
+        ]
+        eligible_orders = self.fsm_order_obj.search(domain)
+        self.assertNotIn(order_closed, eligible_orders)
+
+    def test_dayroute_write_date_preserves_order_times(self):
+        """Changing Day Route date top-down must update orders' YYYY-MM-DD
+        while strictly preserving each order's specific HH:MM:SS time.
+        """
+        time1 = self.date.replace(hour=8, minute=15, second=0)
+        time2 = self.date.replace(hour=14, minute=45, second=0)
+
+        order1 = self._create_order(date=time1)
+        order2 = self._create_order(date=time2)
+        dayroute = order1.dayroute_id
+
+        new_date = (self.date + timedelta(days=2)).date()
+        dayroute.write({"date": new_date})
+
+        self.assertEqual(order1.scheduled_date_start.date(), new_date)
+        self.assertEqual(order1.scheduled_date_start.time(), time1.time())
+        self.assertEqual(order2.scheduled_date_start.date(), new_date)
+        self.assertEqual(order2.scheduled_date_start.time(), time2.time())
+
+    def test_manual_order_assignment_adopts_dayroute_person_and_date(self):
+        """Explicitly assigning an order to a Day Route (write dayroute_id)
+        must top-down adopt the Day Route's person and synchronize the scheduled date.
+        """
+        order_unassigned = self.fsm_order_obj.create(
+            {
+                "location_id": self.location_no_route.id,
+                "scheduled_date_start": self.date,
+            }
+        )
+        self.assertFalse(order_unassigned.person_id)
+        self.assertFalse(order_unassigned.dayroute_id)
+
+        target_date = (self.date + timedelta(days=3)).date()
+        dayroute = self.fsm_dayroute_obj.create(
+            {
+                "date": target_date,
+                "person_id": self.test_person.id,
+                "route_id": self.fsm_route_id.id,
+            }
+        )
+
+        order_unassigned.write({"dayroute_id": dayroute.id})
+
+        self.assertEqual(order_unassigned.person_id, self.test_person)
+        self.assertEqual(order_unassigned.scheduled_date_start.date(), target_date)

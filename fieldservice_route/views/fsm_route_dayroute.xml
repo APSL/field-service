@@ -61,7 +61,7 @@
                                 name="order_ids"
                                 nolabel="1"
                                 widget="many2many"
-                                domain="[('dayroute_id', '=', False), ('fsm_route_id', '=', route_id)]"
+                                domain="[('dayroute_id', '=', False), ('is_closed', '=', False), '|', ('fsm_route_id', '=', route_id), ('fsm_route_id', '=', False)]"
                             >
                                 <list>
                                     <field name="sequence" widget="handle" />

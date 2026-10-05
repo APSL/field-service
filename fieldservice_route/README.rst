@@ -1,7 +1,3 @@
-.. image:: https://odoo-community.org/readme-banner-image
-   :target: https://odoo-community.org/get-involved?utm_source=readme
-   :alt: Odoo Community Association
-
 ===================
 Field Service Route
 ===================
@@ -17,7 +13,7 @@ Field Service Route
 .. |badge1| image:: https://img.shields.io/badge/maturity-Beta-yellow.png
     :target: https://odoo-community.org/page/development-status
     :alt: Beta
-.. |badge2| image:: https://img.shields.io/badge/license-AGPL--3-blue.png
+.. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Ffield--service-lightgray.png?logo=github
@@ -32,12 +28,17 @@ Field Service Route
 
 |badge1| |badge2| |badge3| |badge4| |badge5|
 
-A Field Service route is the sorted list of orders that one
-worker/vehicle will perform during a day.
+A Field Service Day Route is the planned set of orders assigned to a
+field service person for a specific date and route.
 
-This module allows you to manage your Field Service routes: when
-assigning an order to a worker and scheduling it, a route is
-automatically created for that worker and day.
+This module automates Field Service route management:
+
+- Automatically creates and synchronizes Day Routes when scheduling and
+  assigning orders to a person.
+- Enforces route capacities and uniqueness rules per date, person, and
+  route.
+- Handles seamless route fusion when header parameters are modified.
+- Supports both routed locations and route-less field service orders.
 
 **Table of contents**
 
@@ -60,13 +61,27 @@ To use this module, you need to:
 Usage
 =====
 
-To use this module, you need to:
+To use this module:
 
-- Go to Field Service
-- Create or select an order
-- Assign it to a worker and schedule it
-- Go to Field Service > Dashboard > Day Routes. A new record has been
-  created.
+1. **Automatic Day Route Creation:**
+
+   - Go to **Field Service > Field Service > Orders**.
+   - Assign an order to a person and set a scheduled start date.
+   - A Day Route is automatically created or populated under **Field
+     Service > Dashboard > Day Routes**.
+
+2. **Managing Orders from Day Routes:**
+
+   - Open a Day Route from **Field Service > Dashboard > Day Routes**.
+   - View assigned orders or select unassigned orders matching the route
+     and date.
+
+3. **Reassigning & Route Fusion:**
+
+   - Modifying a Day Route's date, person, or route automatically
+     synchronizes all linked orders.
+   - If a Day Route is changed to match an existing active route, orders
+     are automatically merged into the active Day Route.
 
 Bug Tracker
 ===========
@@ -95,6 +110,8 @@ Contributors
 - `Tecnativa <https://www.tecnativa.com>`__:
 
   - Víctor Martínez
+
+- Patryk Pyczko <patryk.pyczko@nagarro.com>
 
 Other credits
 -------------
